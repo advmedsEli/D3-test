@@ -1,8 +1,12 @@
 import Vue from 'vue'
 import App from './App.vue'
 import router from './router'
+import moment from 'moment'
 
 Vue.config.productionTip = false
+
+moment.locale('zh-tw')
+Vue.prototype.$moment = moment
 
 new Vue({
   router,
