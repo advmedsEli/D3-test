@@ -1,10 +1,11 @@
 <template>
   <div class="wrap">
     <h1>D3 - TPR</h1>
-    <p>開始住院時間: <input v-model="startDate" type="date" @change="getFakeData"></p>
-    <div class="content">
-      <svg id="chart" />
-    </div>
+    <p>開始住院時間: <input v-model="startDate" type="date"></p>
+    <button @click="init">
+      random
+    </button>
+    <div ref="content" class="content" />
   </div>
 </template>
 
@@ -58,73 +59,67 @@ export default {
     //     svg.attr('height', Math.round(targetWidth / aspect))
     //   }
     // },
-    init () { // 前公司每個月產品的產量
-      const report = [
-        { month: 1, quantity: 8561 },
-        { month: 2, quantity: 9347 },
-        { month: 3, quantity: 10335 },
-        { month: 4, quantity: 9900 },
-        { month: 5, quantity: 12012 },
-        { month: 6, quantity: 10300 },
-        { month: 7, quantity: 13020 },
-        { month: 8, quantity: 15300 },
-        { month: 9, quantity: 17210 },
-        { month: 10, quantity: 13400 },
-        { month: 11, quantity: 11059 },
-        { month: 12, quantity: 9900 }
-      ]
-
+    init () {
+      this.$refs.content.innerHTML = ''
+      this.getFakeData()
       // 設定 svg 的寬高
       const chart = d3
-        .select('#chart')
-        .attr('width', 500)
-        .attr('height', 500)
+        .select('.content')
+        .append('svg')
+        .attr('width', 1300)
+        .attr('height', 780)
 
       // 選取所有的 g 群組
       const group = chart
         .selectAll('g')
-        .data(report)
+        .data(this.datalist)
         .enter()
         .append('g')
 
       // 取 X 軸比例尺
-      const scaleX = d3
-        .scaleLinear()
-        .domain([0, d3.max(report.map(item => item.month))])
-        .range([0, 300])
+      const scaleX = d3.scaleLinear().domain([0, 10]).range([0, 1100])
+      // Grid - 顯示 X 坐標軸
+      const gridX = d3.axisTop(scaleX).tickFormat('').tickSizeInner(-700)
+      chart.append('g').call(gridX).attr('class', 'gridline').attr('transform', 'translate(100,50)')
+      // 取 Y 軸比例尺
+      const scaleY = d3.scaleLinear().domain([50, 30]).range([0, 700])
+      // Grid - 顯示 Y 坐標軸
+      const gridY = d3.axisLeft(scaleY).ticks(100).tickFormat('').tickSizeInner(-1100)
+      chart.append('g').call(gridY).attr('class', 'gridline').attr('transform', 'translate(100,50)')
 
       // 顯示 X 坐標軸
-      const axisX = d3.axisBottom(scaleX)
-      chart
-        .append('g')
-        .call(axisX)
-        .attr('transform', 'translate(50,330)')
-
-      // 取 Y 軸比例尺
-      const scaleY = d3
-        .scaleLinear()
-        .domain([d3.max(report.map(item => item.quantity)), 0])
-        .range([0, 300])
+      const axisX = d3.axisTop(scaleX).tickFormat((d, i) => {
+        const day = this.$moment(this.startDate).add(i, 'days')
+        return day.month() + 1 + '/' + day.date()
+      }).tickSizeInner(15).tickSizeOuter(-700)
+      chart.append('g').call(axisX).attr('transform', 'translate(100,50)')
 
       // 顯示 Y 坐標軸
-      const axisY = d3.axisLeft(scaleY)
-      chart
-        .append('g')
-        .call(axisY)
-        .attr('transform', 'translate(50,30)')
+      const axisY = d3.axisLeft(scaleY).ticks(100).tickFormat(d => {
+        if (d % 0.5 === 0) return d
+        else return ''
+      }).tickSizeInner(15).tickSizeOuter(-1100)
+      chart.append('g').call(axisY).attr('transform', 'translate(100,50)')
 
       // 定義線段
-      const line = d3
-        .line()
-        .x(item => scaleX(item.month))
-        .y(item => scaleY(item.quantity))
-        .curve(d3.curveBasis)
+      const btline = d3.line()
+        .x((item, i) => {
+          const startDay = this.$moment(this.startDate)
+          const day = this.$moment(item.date).diff(startDay, 'days')
+          const hour = this.$moment(item.date).hour() * 24
+          const min = this.$moment(item.date).minute()
+          const aDayMin = 24 * 60
+          return scaleX(day + (hour + min) / aDayMin)
+        })
+        .y((item, i) => {
+          return scaleY(item.bt)
+        })
 
       // 將線段繪製出來
       group
         .append('path')
-        .attr('d', line(report))
-        .attr('transform', 'translate(50,30)')
+        .attr('d', btline(this.datalist))
+        .attr('transform', 'translate(100,50)')
         .attr('stroke', 'black')
         .attr('stroke-width', 1)
         .attr('fill', 'none')
@@ -180,8 +175,7 @@ export default {
   .content {
     flex-grow: 1;
   }
-  /* .chart {
-    width: 100%;
-    height: 100%;
-  } */
+  .gridline line{
+    stroke: #ccc;
+  }
 </style>
